@@ -18,13 +18,21 @@ public class Stadium : MonoBehaviour {
 	public Vector3 personSpacing;
 	public float waveDelay = 0.1F;
 
+	[Range(2,5)]
+	public float waveFreq_MIN = 3F;
+	[Range(5,10)]
+	public float waveFreq_MAX = 8F;
 
+	private float waveFreq = 5F;
+
+	private float time;
 	private Person[,] _PersonArray;
 
 	// Use this for initialization
 	void Start () {
 		
 		AllocateSeating ();
+		_PersonArray [playerPos_Y, playerPos_X].AllocatePlayer ();
 	}
 
 	// Update is called once per frame
@@ -34,20 +42,15 @@ public class Stadium : MonoBehaviour {
 		{
 			_PersonArray [playerPos_Y, playerPos_X].Wave ();
 		}
-		if (Input.GetKeyDown (KeyCode.D)) {
-			StartCoroutine (CreateWave(0)); // RIGHT
-		}
-		if (Input.GetKeyDown (KeyCode.A)) {
-			StartCoroutine (CreateWave(2)); // LEFT
-		}
-		if (Input.GetKeyDown (KeyCode.W)) {
-			StartCoroutine (CreateWave(3)); // UP
-		}
-		if (Input.GetKeyDown (KeyCode.S)) {
-			StartCoroutine (CreateWave(1)); // DOWN
+
+		time += Time.deltaTime;
+
+		if (time > waveFreq) {
+			StartCoroutine (CreateWave(Random.Range(0,4))); // RIGHT
+			waveFreq = Random.Range(waveFreq_MIN, waveFreq_MAX);
+			time = 0;
 		}
 	}
-
 	void AllocateSeating()
 	{
 		_PersonArray = new Person[_HEIGHT, _WIDTH];
@@ -74,50 +77,71 @@ public class Stadium : MonoBehaviour {
 	{
 		// PLAYER
 		if ((Y == playerPos_Y) && (X == playerPos_X)) {
-
+			
+			float[] playerInfo = _PersonArray[playerPos_Y, playerPos_X].AnimatorInfo();
 
 			switch (dir) {
 
 			case 0: 
 				// CHECK LEFT SEAT
-				_PersonArray[playerPos_Y, playerPos_X-1].Check(false);
-				// CHECK PLAYER
-				_PersonArray[playerPos_Y,playerPos_X].Check(true);
+				GenerateScore (playerInfo, Y, X - 1);
 				break;
 
 			case 1:
 				// CHECK TOP SEAT
-				_PersonArray[playerPos_Y-1, playerPos_X].Check(false);
-				// CHECK PLAYER
-				_PersonArray[playerPos_Y,playerPos_X].Check(true);
+				GenerateScore(playerInfo, Y-1, X);
 				break;
 
 			case 2:
 				// CHECK RIGHT SEAT
-				_PersonArray[playerPos_Y, playerPos_X+1].Check(false);
-				// CHECK PLAYER
-				_PersonArray[playerPos_Y,playerPos_X].Check(true);
+				GenerateScore(playerInfo,Y, X + 1);
 				break;
 
 			case 3:
 				// CHECK BOTTOM SEAT
-				_PersonArray[playerPos_Y+1, playerPos_X].Check(false);
-				// CHECK PLAYER
-				_PersonArray[playerPos_Y,playerPos_X].Check(true);
+				GenerateScore(playerInfo, Y+1, X);
 				break;
 
 			default:
 				break;
 			}
-
-
 		} 
+
 		// NOT PLAYER
 		else {
 			
 			_PersonArray [Y, X].Wave ();
 		}
 
+	}
+	void GenerateScore(float[] playerInfo, int Y, int X)
+	{
+		// CHECK LEFT SEAT
+		float[] seat = _PersonArray [Y, X].AnimatorInfo ();
+		string debugString;
+
+		if (playerInfo [0] == 2) {
+			debugString = "GOT IT -";
+			//Debug.Log (seat [1].ToString ());
+			if (playerInfo [1] == seat [1]) {
+				debugString += " Perfect!";
+			} else if (playerInfo [1] < seat [1]) {
+				debugString += " Little Late..";
+			} else if (playerInfo [1] > seat [1]) {
+				debugString += " Little Early..";
+			}
+		} else {
+			debugString = "FAIL -";
+			if (playerInfo [0] == 3) {
+				debugString += " Close, But Early";
+			} else if (playerInfo [0] == 4) {
+				debugString += " Far too Early!";
+			} else {
+				debugString += " Are you paying attention?";
+			}
+		}
+
+		Debug.Log (debugString);
 	}
 
 	IEnumerator CreateWave(int dir)
