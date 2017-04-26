@@ -4,6 +4,8 @@ using UnityEngine;
 
 public class Stadium : MonoBehaviour {
 
+	private UserInterface _UI;
+
 	[Header("Stadium Size")]
 	public int _HEIGHT;
 	public int _WIDTH;
@@ -13,7 +15,7 @@ public class Stadium : MonoBehaviour {
 	public int playerPos_Y;
 
 	[Header("Person Position")]
-	public GameObject _PersonOBJ;
+	public GameObject[] _PersonOBJ;
 	public Vector3 startPos;
 	public Vector3 personSpacing;
 	public float waveDelay = 0.1F;
@@ -22,8 +24,20 @@ public class Stadium : MonoBehaviour {
 	public float waveFreq_MIN = 3F;
 	[Range(5,10)]
 	public float waveFreq_MAX = 8F;
-
 	private float waveFreq = 5F;
+
+	[Header("Scoring")]
+	private float score;
+	private bool onStreak;
+	private bool lastChance;
+	private int streakCount = 0;
+	public string[] scoreDesc;
+
+	[Header("Sound")]
+	public AudioClip win;
+	public AudioClip lose;
+	private AudioSource _Audio;
+
 
 	private float time;
 	private Person[,] _PersonArray;
@@ -33,12 +47,14 @@ public class Stadium : MonoBehaviour {
 		
 		AllocateSeating ();
 		_PersonArray [playerPos_Y, playerPos_X].AllocatePlayer ();
+		_UI = GameObject.FindObjectOfType<UserInterface> ();
+		_Audio = GetComponent<AudioSource> ();
 	}
 
 	// Update is called once per frame
 	void Update () {
 
-		if(Input.GetKeyDown(KeyCode.Space))
+		if(Input.GetKeyDown(KeyCode.Space)||(Input.GetMouseButtonDown(0)))
 		{
 			_PersonArray [playerPos_Y, playerPos_X].Wave ();
 		}
@@ -56,19 +72,20 @@ public class Stadium : MonoBehaviour {
 		_PersonArray = new Person[_HEIGHT, _WIDTH];
 
 		Quaternion rot = new Quaternion (0, 0, 0, 0);
-		Vector3 pos = startPos * this.transform.localScale.x;
+		Vector3 pos = startPos * this.transform.localScale.x; 		// SCALE CORRECT RELATIVE TO PARENT
+		pos = new Vector3 (pos.x, pos.y, 1);						//SET Z SO SORTS CORRECTLY
 		for (int j = 0; j < _HEIGHT; j++) {
 
 			for (int i = 0; i < _WIDTH; i++) {
 
-				GameObject clone = Instantiate (_PersonOBJ, pos, rot, this.gameObject.transform);
+				GameObject clone = Instantiate (_PersonOBJ[Random.Range(0,_PersonOBJ.Length)], pos, rot, this.gameObject.transform);
 				_PersonArray [j, i] =	clone.GetComponent<Person> ();
 
-				pos += new Vector3 (personSpacing.x * this.transform.localScale.x, 0);
+				pos = new Vector3 (pos.x + (personSpacing.x * this.transform.localScale.x/2), pos.y, pos.z);
 
 			}	
 
-			pos = new Vector3 (startPos.x * this.transform.localScale.x , pos.y - personSpacing.y * this.transform.localScale.y);
+			pos = new Vector3 (startPos.x * this.transform.localScale.x , pos.y - personSpacing.y * this.transform.localScale.y, -(j));
 		}
 			
 	}
@@ -118,30 +135,62 @@ public class Stadium : MonoBehaviour {
 	{
 		// CHECK LEFT SEAT
 		float[] seat = _PersonArray [Y, X].AnimatorInfo ();
-		string debugString;
-
+		string descString ="";
+		float nScore = 0;
+														// ## SCORE ##
 		if (playerInfo [0] == 2) {
-			debugString = "GOT IT -";
-			//Debug.Log (seat [1].ToString ());
-			if (playerInfo [1] == seat [1]) {
-				debugString += " Perfect!";
-			} else if (playerInfo [1] < seat [1]) {
-				debugString += " Little Late..";
-			} else if (playerInfo [1] > seat [1]) {
-				debugString += " Little Early..";
-			}
-		} else {
-			debugString = "FAIL -";
-			if (playerInfo [0] == 3) {
-				debugString += " Close, But Early";
-			} else if (playerInfo [0] == 4) {
-				debugString += " Far too Early!";
-			} else {
-				debugString += " Are you paying attention?";
-			}
-		}
 
-		Debug.Log (debugString);
+			_Audio.PlayOneShot (win);
+
+			lastChance = false;
+			if (onStreak) {streakCount++;} 
+			else {onStreak = true; streakCount = 1;}
+
+			if (playerInfo [1] == seat [1]) { 			//PERFECT
+				descString = " Perfect!";
+				nScore = 200;
+			} else if (playerInfo [1] < seat [1]) {		// LITTLE LATE
+				descString = " Nice!";
+				nScore = 20;
+			} else if (playerInfo [1] > seat [1]) {		// LITTLE EARLY
+				descString = " Great!";
+				nScore = 20;
+			}
+
+														// ## FAIL ##
+		} 
+		else {
+
+			if (onStreak) {
+				descString = ("Streak Over");
+
+			} else {
+
+				if (lastChance) {
+					descString = ("Boo! You Lose");
+					score = 0;
+					_Audio.PlayOneShot (lose);
+				} else {
+					
+					descString += ("Last Chance!");
+					lastChance = true;
+				}
+			}
+
+			onStreak = false; 
+			streakCount = 0;
+
+
+//			if (playerInfo [0] == 3) {					// EARLY
+//				descString += " Close, But Early";
+//			} else if (playerInfo [0] == 4) {
+//				descString += " Far too Early!";		// FAR TOO EARLY
+//			} else {
+//				descString += " Try Again"; //NOTHING
+//			}
+		}
+			
+		score = _UI.UpdateScore (score, nScore, streakCount, descString);
 	}
 
 	IEnumerator CreateWave(int dir)

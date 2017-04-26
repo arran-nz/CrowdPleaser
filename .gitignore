@@ -1,2 +1,5 @@
 MexiWave/Library/metadata/
 MexiWave/Library/ShaderCache/
+*.meta
+*.apk
+MexiWave/Temp/
