@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class Person : MonoBehaviour {
 
-	private bool isWaving;
+
 
 	private SpriteRenderer spriteRenderer;
 	private Animator arms;
@@ -14,78 +14,63 @@ public class Person : MonoBehaviour {
 	private Texture2D texture;
 	private MaterialPropertyBlock block;
 
+	public float animTime;
+
 	void Awake(){
 		
-		if (enablePalette) {
-			spriteRenderer = GetComponentInChildren<SpriteRenderer> ();
-		}
+		spriteRenderer = GetComponentInChildren<SpriteRenderer> ();
 		arms = GetComponentInChildren<Animator> ();
 	}
-	void Start()
-	{
-		if (palettes.Length > 0) {
-			SwapColors (palettes[Random.Range(0,palettes.Length)]);
-		}
-	}
-
 	void LateUpdate(){
-		
-		if (spriteRenderer != null) {
+
+		AnimatorInfo ();
+		if (spriteRenderer != null && enablePalette) {
 			spriteRenderer.SetPropertyBlock (block);
 		}
 	}
 
+
+
 	public void Wave()
 	{
-		arms.Play ("LiftArms");
+		arms.Play ("wave");
 	}
 
-	public void AllocatePlayer()
+	public void AllocatePlayer(ColorPalette palette)
 	{
+		SwapColors (palette);
 		Wave ();
 	}
-		
-	public float[] AnimatorInfo()
+	public void AllocateSupporter()
 	{
-		float[] _animArray = new float[2];
+		if (palettes.Length > 0 && enablePalette) {
+			SwapColors (palettes[Random.Range(0,palettes.Length)]);
+		}
+	}
 
+	private void AnimatorInfo()
+	{
 		AnimatorStateInfo animationState = arms.GetCurrentAnimatorStateInfo(0);
-		AnimatorClipInfo[] myAnimatorClip = arms.GetCurrentAnimatorClipInfo(0);
-		_animArray[1] =  (myAnimatorClip [0].clip.length * animationState.normalizedTime) * 100;
-
-		if (animationState.IsName ("Idle")) {
-			_animArray [0] = 1;
-		}
-		if (animationState.IsName ("LiftArms")) {
-			_animArray [0] = 2;
-		}
-		if (animationState.IsName ("Up")) {
-			_animArray [0] = 3;
-		}
-		if (animationState.IsName ("DropArms")) {
-			_animArray [0] = 4;
-		}
-
-
-		return _animArray;
+	
+		animTime =  animationState.normalizedTime;
 	}
 
 
-	void SwapColors(ColorPalette palette){
+	private void SwapColors(ColorPalette palette){
 
-		if (palette.cachedTexture == null) {
+		if ((palette.cachedTexture == null)) {
 
 			//Copying Texture
 			texture = spriteRenderer.sprite.texture;
 
-			var w = texture.width;
-			var h = texture.height;
+			int w = texture.width;
+			int h = texture.height;
 
-			var cloneTexture = new Texture2D(w, h);
+			Texture2D cloneTexture = new Texture2D(w, h);
 			cloneTexture.wrapMode = TextureWrapMode.Clamp;
 			cloneTexture.filterMode = FilterMode.Point;
 
-			var colors = texture.GetPixels();
+			Color[] colors = texture.GetPixels();
 
 			for(int i = 0; i < colors.Length; i++){
 				colors[i] = palette.GetColor(colors[i]);
@@ -96,9 +81,7 @@ public class Person : MonoBehaviour {
 
 			palette.cachedTexture = cloneTexture;
 		}
-
-
-
+			
 		block = new MaterialPropertyBlock();
 		block.SetTexture("_MainTex", palette.cachedTexture);
 	}

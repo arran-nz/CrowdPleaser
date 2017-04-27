@@ -2,8 +2,10 @@
   <MonoDevelop.Ide.Workspace ActiveConfiguration="Debug" PreferredExecutionTarget="Unity.Instance.Unity Editor" />
   <MonoDevelop.Ide.Workbench ActiveDocument="Assets\Scripts\Stadium.cs">
     <Files>
-      <File FileName="Assets\Scripts\Stadium.cs" Line="60" Column="71" />
-      <File FileName="Assets\Scripts\Person.cs" Line="31" Column="90" />
+      <File FileName="Assets\Scripts\Person.cs" Line="44" Column="33" />
+      <File FileName="Assets\Scripts\Stadium.cs" Line="229" Column="3" />
+      <File FileName="Assets\Scripts\UserInterface.cs" Line="36" Column="81" />
+      <File FileName="Assets\Scripts\SpeechBubble.cs" Line="24" Column="24" />
     </Files>
   </MonoDevelop.Ide.Workbench>
   <MonoDevelop.Ide.DebuggingService.Breakpoints>

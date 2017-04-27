@@ -15,6 +15,7 @@ public class Stadium : MonoBehaviour {
 	public int playerPos_Y;
 
 	[Header("Person Position")]
+	public ColorPalette playerPalette;
 	public GameObject[] _PersonOBJ;
 	public Vector3 startPos;
 	public Vector3 personSpacing;
@@ -31,22 +32,38 @@ public class Stadium : MonoBehaviour {
 	private bool onStreak;
 	private bool lastChance;
 	private int streakCount = 0;
-	public string[] scoreDesc;
+
+	public Color cPerfect;
+	public string[] sPerfect;
+	public Color cGreat;
+	public string[] sGreat;
+	public Color cGood;
+	public string[] sGood;
+	public Color cAlright;
+	public string[] sAlright;
+	public Color cBoo;
+	public string[] sBoo;
 
 	[Header("Sound")]
 	public AudioClip win;
 	public AudioClip lose;
+	public AudioClip jump;
+	public AudioClip jumpFail;
 	private AudioSource _Audio;
 
 
 	private float time;
+	private bool activeWave;
+
 	private Person[,] _PersonArray;
+	private Person _Player;
 
 	// Use this for initialization
 	void Start () {
 		
 		AllocateSeating ();
-		_PersonArray [playerPos_Y, playerPos_X].AllocatePlayer ();
+
+		_Player.AllocatePlayer (playerPalette);
 		_UI = GameObject.FindObjectOfType<UserInterface> ();
 		_Audio = GetComponent<AudioSource> ();
 	}
@@ -54,19 +71,34 @@ public class Stadium : MonoBehaviour {
 	// Update is called once per frame
 	void Update () {
 
+		//INPUT
 		if(Input.GetKeyDown(KeyCode.Space)||(Input.GetMouseButtonDown(0)))
 		{
-			_PersonArray [playerPos_Y, playerPos_X].Wave ();
+			_Player.Wave ();
+			_Audio.PlayOneShot (jump);
+
+		}
+		// DEBUG
+		if(Input.GetKeyDown(KeyCode.X))
+			{
+				Time.timeScale = 0.2f;
+			}
+		if(Input.GetKeyDown(KeyCode.C))
+		{
+			Time.timeScale = 1f;
 		}
 
-		time += Time.deltaTime;
 
+
+
+		time += Time.deltaTime;
 		if (time > waveFreq) {
 			StartCoroutine (CreateWave(Random.Range(0,4))); // RIGHT
 			waveFreq = Random.Range(waveFreq_MIN, waveFreq_MAX);
 			time = 0;
 		}
 	}
+	int randPerson;
 	void AllocateSeating()
 	{
 		_PersonArray = new Person[_HEIGHT, _WIDTH];
@@ -76,10 +108,23 @@ public class Stadium : MonoBehaviour {
 		pos = new Vector3 (pos.x, pos.y, 1);						//SET Z SO SORTS CORRECTLY
 		for (int j = 0; j < _HEIGHT; j++) {
 
-			for (int i = 0; i < _WIDTH; i++) {
 
-				GameObject clone = Instantiate (_PersonOBJ[Random.Range(0,_PersonOBJ.Length)], pos, rot, this.gameObject.transform);
+			for (int i = 0; i < _WIDTH; i++) {
+				
+				randPerson = Random.Range (0, _PersonOBJ.Length);
+
+				GameObject clone = Instantiate (_PersonOBJ[randPerson], pos, rot, this.gameObject.transform);
 				_PersonArray [j, i] =	clone.GetComponent<Person> ();
+
+				//ASSIGN PLAYER
+				if (j == playerPos_Y && i == playerPos_X) {
+					_Player = _PersonArray [j, i];
+					_Player.AllocatePlayer (playerPalette);
+				} else {
+					_PersonArray [j, i].AllocateSupporter ();
+				}
+					
+
 
 				pos = new Vector3 (pos.x + (personSpacing.x * this.transform.localScale.x/2), pos.y, pos.z);
 
@@ -94,29 +139,27 @@ public class Stadium : MonoBehaviour {
 	{
 		// PLAYER
 		if ((Y == playerPos_Y) && (X == playerPos_X)) {
-			
-			float[] playerInfo = _PersonArray[playerPos_Y, playerPos_X].AnimatorInfo();
 
 			switch (dir) {
 
 			case 0: 
 				// CHECK LEFT SEAT
-				GenerateScore (playerInfo, Y, X - 1);
+				StartCoroutine(GenerateScore (Y, X - 1));
 				break;
 
 			case 1:
 				// CHECK TOP SEAT
-				GenerateScore(playerInfo, Y-1, X);
+				StartCoroutine(GenerateScore(Y-1, X));
 				break;
 
 			case 2:
 				// CHECK RIGHT SEAT
-				GenerateScore(playerInfo,Y, X + 1);
+				StartCoroutine(GenerateScore(Y, X + 1));
 				break;
 
 			case 3:
 				// CHECK BOTTOM SEAT
-				GenerateScore(playerInfo, Y+1, X);
+				StartCoroutine(GenerateScore(Y+1, X));
 				break;
 
 			default:
@@ -131,43 +174,71 @@ public class Stadium : MonoBehaviour {
 		}
 
 	}
-	void GenerateScore(float[] playerInfo, int Y, int X)
+	IEnumerator GenerateScore(int Y, int X)
 	{
-		// CHECK LEFT SEAT
-		float[] seat = _PersonArray [Y, X].AnimatorInfo ();
+		float perfectTime = 0.5F; // HALFWAY THOUGH ANIM
+		float winThres = 0.15F; float goodThres = 0.10f; float greatThres = 0.05F; float perfectThres = 0.025F;
 		string descString ="";
 		float nScore = 0;
-														// ## SCORE ##
-		if (playerInfo [0] == 2) {
+
+		yield return new WaitForSeconds (perfectTime);
+
+		Debug.Log ((_Player.animTime) + "<- TIME / GOAL ->" + perfectTime);
+
+
+		if ((WithinThreshold (perfectTime, winThres))&&((_Player.animTime != 0))) {
+
+			if (WithinThreshold (perfectTime, perfectThres)) {
+				//PERFECT
+				nScore = 200;
+				SpeechFromArray (sPerfect, 0, cPerfect);
+
+			} else if (WithinThreshold (perfectTime, greatThres)) {
+				// GREAT			
+				nScore = 100;
+				SpeechFromArray (sGreat, 0, cGreat);
+			} else if (WithinThreshold (perfectTime, goodThres)) {
+				// GOOD			
+				nScore = 50;
+				SpeechFromArray (sGood, 0, cGood);
+			} else {
+				// ALRIGHT			
+				nScore = 20;
+				SpeechFromArray (sAlright, 0, cAlright);
+			}
+			descString = "SCORE";
 
 			_Audio.PlayOneShot (win);
 
 			lastChance = false;
-			if (onStreak) {streakCount++;} 
-			else {onStreak = true; streakCount = 1;}
+			if (onStreak) {
 
-			if (playerInfo [1] == seat [1]) { 			//PERFECT
-				descString = " Perfect!";
-				nScore = 200;
-			} else if (playerInfo [1] < seat [1]) {		// LITTLE LATE
-				descString = " Nice!";
-				nScore = 20;
-			} else if (playerInfo [1] > seat [1]) {		// LITTLE EARLY
-				descString = " Great!";
-				nScore = 20;
+				if (_Audio.pitch < 2) {
+					_Audio.pitch += 0.025F;
+				}
+
+
+				streakCount++;
+			} else {
+				onStreak = true;
+				streakCount = 1;
+
 			}
+		}
+ 
 
-														// ## FAIL ##
-		} 
 		else {
+			_Audio.pitch = 1;
+			_Audio.PlayOneShot (jumpFail);
 
 			if (onStreak) {
 				descString = ("Streak Over");
+				nScore = 100 * streakCount;
 
 			} else {
 
 				if (lastChance) {
-					descString = ("Boo! You Lose");
+					SpeechFromArray (sBoo, 1, cBoo);
 					score = 0;
 					_Audio.PlayOneShot (lose);
 				} else {
@@ -180,21 +251,33 @@ public class Stadium : MonoBehaviour {
 			onStreak = false; 
 			streakCount = 0;
 
-
-//			if (playerInfo [0] == 3) {					// EARLY
-//				descString += " Close, But Early";
-//			} else if (playerInfo [0] == 4) {
-//				descString += " Far too Early!";		// FAR TOO EARLY
-//			} else {
-//				descString += " Try Again"; //NOTHING
-//			}
 		}
 			
 		score = _UI.UpdateScore (score, nScore, streakCount, descString);
 	}
 
+	private void SpeechFromArray(string[] speechArray, int type, Color color)
+	{
+		if (speechArray.Length > 0) {
+			_UI.CreateSpeechBubble (speechArray [Random.Range (0, speechArray.Length)], type, color);
+		} else {
+			Debug.LogWarning (speechArray.ToString () + "Missing Values");
+		}
+	}
+
+	private bool WithinThreshold(float pTime, float _value)
+	{
+		if (((_Player.animTime) > pTime - _value) && ((_Player.animTime) < pTime + _value)) {
+			return true;
+		} else {
+			return false;
+		}
+
+	}
 	IEnumerator CreateWave(int dir)
 	{
+		activeWave = true;
+
 		switch (dir) {
 		case 0:
 			
@@ -256,7 +339,7 @@ public class Stadium : MonoBehaviour {
 			break;
 		}
 
-
+		activeWave = false;
 	}
 
 
