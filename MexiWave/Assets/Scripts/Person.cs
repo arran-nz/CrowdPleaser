@@ -39,7 +39,6 @@ public class Person : MonoBehaviour {
 	public void AllocatePlayer(ColorPalette palette)
 	{
 		SwapColors (palette);
-		Wave ();
 	}
 	public void AllocateSupporter()
 	{

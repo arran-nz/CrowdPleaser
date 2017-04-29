@@ -49,6 +49,7 @@
      <Compile Include="Assets\Scripts\ColorPalette\ColorPalette.cs" />
      <Compile Include="Assets\Scripts\ColorPalette\CustomAssetUtil.cs" />
      <Compile Include="Assets\Scripts\ColorPalette\PaletteSwapper.cs" />
+     <Compile Include="Assets\Scripts\MenuController.cs" />
      <Compile Include="Assets\Scripts\Person.cs" />
      <Compile Include="Assets\Scripts\ScaleToScreen.cs" />
      <Compile Include="Assets\Scripts\SpeechBubble.cs" />

@@ -11,28 +11,47 @@ public class Stadium : MonoBehaviour {
 	public int _WIDTH;
 	
 	[Header("Player Position")]
+	public bool player_RandPos;
 	public int playerPos_X;
 	public int playerPos_Y;
+	private bool playerJumping;
 
 	[Header("Person Position")]
 	public ColorPalette playerPalette;
 	public GameObject[] _PersonOBJ;
 	public Vector3 startPos;
 	public Vector3 personSpacing;
-	public float waveDelay = 0.1F;
 
-	[Range(2,5)]
+	private int randPerson;
+
+	[Header("Waves")]
+	[Range(2F,5F)]
 	public float waveFreq_MIN = 3F;
-	[Range(5,10)]
-	public float waveFreq_MAX = 8F;
+	private float sWF_Mn;
+	[Range(2.5F,7F)]
+	public float waveFreq_MAX = 8F;	private float sWF_Mx;
 	private float waveFreq = 5F;
+	public float waveDelay = 0.1F;	private float s_WD;
 
-	[Header("Scoring")]
+
 	private float score;
 	private bool onStreak;
 	private bool lastChance;
 	private int streakCount = 0;
 
+	[Header("Scoring")]
+	public int diffWaveStep = 10;
+	public int diffThresStep = 25;
+	public float diffMinWD = 0.07F;
+	public float diffMinWF = 2F;
+
+	[Header("Thresholds")]
+	public float winThres = 0.15F; private float s_WT;
+	public float goodThres = 0.10f; private float s_GT;
+	public float greatThres = 0.05F; private float s_GRT;
+	public float perfectThres = 0.025F; private float s_PT;
+
+	[Header("Speech")]
 	public Color cPerfect;
 	public string[] sPerfect;
 	public Color cGreat;
@@ -43,62 +62,159 @@ public class Stadium : MonoBehaviour {
 	public string[] sAlright;
 	public Color cBoo;
 	public string[] sBoo;
+	public string[] sWellDone;
 
 	[Header("Sound")]
 	public AudioClip win;
 	public AudioClip lose;
 	public AudioClip jump;
 	public AudioClip jumpFail;
-	private AudioSource _Audio;
+	private AudioSource[] _Audio;
 
+	// MENU 
+	private MenuController _MenuController;
 
 	private float time;
-	private bool activeWave;
 
 	private Person[,] _PersonArray;
 	private Person _Player;
 
+
+	public bool _Waves = true;
+	private bool _GameOn;
+
 	// Use this for initialization
 	void Start () {
-		
-		AllocateSeating ();
 
+		if (player_RandPos) {
+			playerPos_X = Random.Range (3, 5);
+			playerPos_Y = Random.Range (4, 6);
+		}
+
+		//SET WAVES DEFAULTS
+		sWF_Mn = waveFreq_MIN;
+		sWF_Mx = waveFreq_MAX;
+		s_WD = waveDelay;
+		// SET THRES DEFAULTS
+		s_WT = winThres;
+		s_GT = goodThres;
+		s_GRT = greatThres;
+		s_PT = perfectThres;
+
+		AllocateSeating ();
 		_Player.AllocatePlayer (playerPalette);
 		_UI = GameObject.FindObjectOfType<UserInterface> ();
-		_Audio = GetComponent<AudioSource> ();
+		_Audio = GetComponents<AudioSource> ();
+		_MenuController = GameObject.FindObjectOfType<MenuController> ();
 	}
 
 	// Update is called once per frame
 	void Update () {
 
-		//INPUT
-		if(Input.GetKeyDown(KeyCode.Space)||(Input.GetMouseButtonDown(0)))
+		//INPUT FOR PC
+		if(Input.GetKeyDown(KeyCode.Space))
 		{
-			_Player.Wave ();
-			_Audio.PlayOneShot (jump);
-
+			PlayerJump ();
 		}
+
+		// GAME
+		if (_Waves) {
+			MakeWaves ();
+		}
+
 		// DEBUG
 		if(Input.GetKeyDown(KeyCode.X))
-			{
-				Time.timeScale = 0.2f;
-			}
+		{
+			Time.timeScale = 0.2f;
+		}
 		if(Input.GetKeyDown(KeyCode.C))
 		{
 			Time.timeScale = 1f;
 		}
 
+	}
+	public void PauseGame(bool pause)
+	{
+		if (pause) {
+			Time.timeScale = 0F;
 
+		} else {
+			Time.timeScale = 1F;
+		}
+	}
 
+	public void StartGame() //START NEW GAME
+	{
+		_GameOn = true; _Waves = true;
+		waveFreq = 5F;
 
+		//CHANGE VALUE TO ORIGINAL VALUES - WAVES
+		waveFreq_MIN = sWF_Mn;
+		waveFreq_MAX = sWF_Mx;
+		waveDelay = s_WD;
+
+		// THRESHOLDS
+		winThres = s_WT;
+		goodThres = s_GT;
+		greatThres = s_GRT;
+		perfectThres = s_PT;
+
+	}
+
+	IEnumerator EndGame (float p_Score,int p_Streak)
+	{
+		_GameOn = false; _Waves = false;
+		SpeechFromArray (sWellDone, 1, Color.white);
+		yield return new WaitForSeconds (3F);
+		score = 0; streakCount = 0;
+		_MenuController.SetupEndGame (p_Score, p_Streak);
+	}
+
+	public void PlayerJump()
+	{
+		if (!playerJumping && _GameOn) {
+			playerJumping = true;
+			_Player.Wave ();
+			_Audio[0].PlayOneShot (jump);
+			StartCoroutine (NotJump ());
+		}
+	}
+	IEnumerator NotJump()
+	{
+		yield return new WaitForSeconds (1F);
+		playerJumping = false;
+	}
+
+	void MakeWaves()
+	{
 		time += Time.deltaTime;
 		if (time > waveFreq) {
-			StartCoroutine (CreateWave(Random.Range(0,4))); // RIGHT
+			StartCoroutine (CreateWave(Random.Range(0,4))); // RANDOM DIR
 			waveFreq = Random.Range(waveFreq_MIN, waveFreq_MAX);
 			time = 0;
 		}
 	}
-	int randPerson;
+
+
+	void InreaseWave()
+	{			
+		_UI.UpdateScreen ("Speed Increased!");
+
+		if (waveFreq_MIN > diffMinWF) {
+			waveFreq_MIN  = waveFreq_MIN - 0.25F; 
+		}
+		if (waveDelay > diffMinWD) {
+			waveDelay = waveDelay - 0.01F;
+		}
+	}
+
+	void DecreaseThres()
+	{
+
+
+
+	}
+
 	void AllocateSeating()
 	{
 		_PersonArray = new Person[_HEIGHT, _WIDTH];
@@ -138,7 +254,7 @@ public class Stadium : MonoBehaviour {
 	void CheckIfPlayer (int Y, int X, int dir)
 	{
 		// PLAYER
-		if ((Y == playerPos_Y) && (X == playerPos_X)) {
+		if ((Y == playerPos_Y) && (X == playerPos_X)&&(_GameOn)) {
 
 			switch (dir) {
 
@@ -177,13 +293,11 @@ public class Stadium : MonoBehaviour {
 	IEnumerator GenerateScore(int Y, int X)
 	{
 		float perfectTime = 0.5F; // HALFWAY THOUGH ANIM
-		float winThres = 0.15F; float goodThres = 0.10f; float greatThres = 0.05F; float perfectThres = 0.025F;
-		string descString ="";
 		float nScore = 0;
 
 		yield return new WaitForSeconds (perfectTime);
 
-		Debug.Log ((_Player.animTime) + "<- TIME / GOAL ->" + perfectTime);
+		//Debug.Log ((_Player.animTime) + "<- TIME / GOAL ->" + perfectTime);
 
 
 		if ((WithinThreshold (perfectTime, winThres))&&((_Player.animTime != 0))) {
@@ -206,54 +320,75 @@ public class Stadium : MonoBehaviour {
 				nScore = 20;
 				SpeechFromArray (sAlright, 0, cAlright);
 			}
-			descString = "SCORE";
 
-			_Audio.PlayOneShot (win);
+			_Audio[1].PlayOneShot (win);
 
-			lastChance = false;
 			if (onStreak) {
 
-				if (_Audio.pitch < 2) {
-					_Audio.pitch += 0.025F;
+				if (_Audio[1].pitch < 2) {
+					_Audio[1].pitch += 0.01F;
+				}
+				streakCount++;
+
+				//INCREASE WAVES
+				if (streakCount % diffWaveStep == 0) {
+					InreaseWave ();
+					StartCoroutine( _UI.ReturnScreenDelay () );
+				}
+				//DECREASE THRESHOLDS
+				if (streakCount % diffThresStep == 0) {
+					DecreaseThres ();
+					StartCoroutine( _UI.ReturnScreenDelay () );
 				}
 
-
-				streakCount++;
-			} else {
+			} 
+			else 
+			{
+				
 				onStreak = true;
 				streakCount = 1;
+				_UI.ReturnScreen ();
 
 			}
 		}
  
 
-		else {
-			_Audio.pitch = 1;
-			_Audio.PlayOneShot (jumpFail);
+		else { // PLAYER FAILED
+			
+			_Audio[1].pitch = 1;
+			_Audio[1].PlayOneShot (jumpFail);
 
-			if (onStreak) {
-				descString = ("Streak Over");
-				nScore = 100 * streakCount;
+			if (streakCount < 5) { // X amount of chances before actually displying end game screen
 
-			} else {
 
-				if (lastChance) {
-					SpeechFromArray (sBoo, 1, cBoo);
+				if (onStreak) {
+					if (streakCount > 1) {
+						_UI.UpdateScreen (streakCount + " Waves!");
+					} else {
+						_UI.UpdateScreen (streakCount + " Wave!");
+					}
 					score = 0;
-					_Audio.PlayOneShot (lose);
+					_Audio [1].PlayOneShot (lose);
+					SpeechFromArray (sBoo, 1, cBoo);
 				} else {
-					
-					descString += ("Last Chance!");
-					lastChance = true;
-				}
-			}
 
-			onStreak = false; 
-			streakCount = 0;
+					_UI.UpdateScreen ("Try Again");
+				}
+				streakCount = 0;
+			} 
+			else {
+				StartCoroutine( EndGame (score, streakCount) );
+			}
+			onStreak = false;
 
 		}
+
+
+
+		score = _UI.UpdateScore (score, nScore, streakCount);
+
 			
-		score = _UI.UpdateScore (score, nScore, streakCount, descString);
+
 	}
 
 	private void SpeechFromArray(string[] speechArray, int type, Color color)
@@ -276,7 +411,6 @@ public class Stadium : MonoBehaviour {
 	}
 	IEnumerator CreateWave(int dir)
 	{
-		activeWave = true;
 
 		switch (dir) {
 		case 0:
@@ -338,23 +472,6 @@ public class Stadium : MonoBehaviour {
 		default:
 			break;
 		}
-
-		activeWave = false;
-	}
-
-
-	// NOT IN USE
-	//CONVERT 1D to 2D ARRAY
-	private static Person[,] Make2DArray(Person[] input, int height, int width)
-	{
-		Person[,] output = new Person[height, width];
-		for (int i = 0; i < height; i++)
-		{
-			for (int j = 0; j < width; j++)
-			{
-				output[i, j] = input[i * width + j];
-			}
-		}
-		return output;
+			
 	}
 }
